@@ -1,4 +1,4 @@
-.PHONY: setup run test demo-c1 release-plan release-dry-run release-launch release-rollback demo-c2 demo-c3 demo-c4 demo-c5 demo-c6 demo-c7
+.PHONY: setup run test demo-c1 release-plan release-dry-run release-launch release-rollback demo-c2 demo-c3 demo-c4 demo-c5 demo-c6 demo-c7 demo-c8
 
 setup:
 	uv sync --group extras --group test
@@ -94,3 +94,17 @@ demo-c7:
 	RUN_ID=$$(uv run python -m tools.workflow.bootstrap.cli run quality_gate_finish --observe | awk -F': ' '/^run_id:/{print $$2}'); \
 	uv run python -m tools.workflow.bootstrap.cli resume "$$RUN_ID" --interactive; \
 	uv run python -m tools.workflow.bootstrap.cli runs --scenario-id quality_gate_finish
+
+demo-c8:
+	@set -e; \
+	uv run python -m tools.workflow.human_driven_ai.cli status; \
+	uv run python -m tools.workflow.human_driven_ai.cli ingest \
+		--note-root tests/fixtures/c5/obsidian/daily \
+		--note-root tests/fixtures/c5/obsidian/preproject \
+		--note-root tests/fixtures/c5/obsidian/workalongs \
+		--note-root tests/fixtures/c5/obsidian/dumps \
+		--force-full-scan; \
+	uv run python -m tools.workflow.human_driven_ai.cli review-queue --ready-only; \
+	RUN_ID=$$(uv run python -m tools.workflow.human_driven_ai.cli bootstrap-run quality_gate_finish --observe | awk -F': ' '/^run_id:/{print $$2}'); \
+	uv run python -m tools.workflow.human_driven_ai.cli bootstrap-resume "$$RUN_ID" --interactive; \
+	uv run python -m tools.workflow.human_driven_ai.cli status

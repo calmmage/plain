@@ -302,3 +302,47 @@ make demo-c7
 ```
 
 Details: `dev/notes/demos/c7.md`.
+
+## C8: Integrated Workflow Orchestration
+
+The c8 layer adds one unified command surface that ties M1..M7 together and exposes a global status snapshot.
+
+Capabilities:
+- unified `workflow` commands:
+  - `workflow status`
+  - `workflow ingest`
+  - `workflow run-daily`
+  - `workflow review-queue`
+  - `workflow phase-board`
+  - `workflow release-dry-run`
+  - `workflow principles-capture`
+  - `workflow bootstrap-run`
+  - `workflow bootstrap-resume`
+- orchestration wrappers over existing services with shared defaults
+- global M1..M8 status snapshot with module-level details:
+  - project/feature counts and phase distribution
+  - release dry-run gate summary
+  - principles/skills activity
+  - daily run logs
+  - ingest/review queue volumes
+  - bootstrap scenario/run health
+  - coordination layer pointer checks
+
+CLI (via integrated workflow wrapper):
+
+```bash
+uv run python -m tools.workflow.human_driven_ai.cli status
+uv run python -m tools.workflow.human_driven_ai.cli ingest --note-root <path>
+uv run python -m tools.workflow.human_driven_ai.cli run-daily --task-source <path> --context-source <path>
+uv run python -m tools.workflow.human_driven_ai.cli review-queue --ready-only
+uv run python -m tools.workflow.human_driven_ai.cli bootstrap-run quality_gate_finish --observe
+uv run python -m tools.workflow.human_driven_ai.cli bootstrap-resume <run_id> --interactive
+```
+
+Demo:
+
+```bash
+make demo-c8
+```
+
+Details: `dev/notes/demos/c8.md`.
