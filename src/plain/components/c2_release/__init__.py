@@ -11,6 +11,13 @@ from plain.components.c2_release.models import (
     dump_release_spec,
     load_release_spec,
 )
+from plain.components.c2_release.render import (
+    render_dry_run_report,
+    render_gate_failures,
+    render_launch_pack,
+    render_runbook,
+)
+from plain.components.c2_release.service import ReleaseService
 
 __all__ = [
     "DatabaseGateResult",
@@ -22,4 +29,9 @@ __all__ = [
     "RunbookStep",
     "dump_release_spec",
     "load_release_spec",
+    "ReleaseService",
+    "render_dry_run_report",
+    "render_gate_failures",
+    "render_launch_pack",
+    "render_runbook",
 ]
