@@ -9,6 +9,9 @@ from plain.components.c2_release.render import render_dry_run_report, render_lau
 from plain.components.c2_release.service import ReleaseService
 from plain.components.c3_principles.models import SkillTargetScope
 from plain.components.c3_principles.service import PrinciplesService
+from plain.components.c4_daily_runner.models import RepoState, WorkspaceType
+from plain.components.c4_daily_runner.render import render_daily_result
+from plain.components.c4_daily_runner.service import DailyImplementerService
 from plain.core.models import FlowError, Phase
 
 
@@ -175,6 +178,33 @@ def build_parser() -> argparse.ArgumentParser:
     )
     principle_deploy.add_argument("--target", action="append", default=None)
 
+    daily_parser = subparsers.add_parser(
+        "daily", help="Run daily feature implementer selection and packet generation"
+    )
+    daily_sub = daily_parser.add_subparsers(dest="daily_command", required=True)
+
+    daily_score = daily_sub.add_parser("score", help="Score candidate tasks")
+    daily_score.add_argument("--task-source", action="append", default=[])
+    daily_score.add_argument("--daily-budget", type=int, default=180)
+
+    daily_run = daily_sub.add_parser("run", help="Run daily_feature_implementer job")
+    daily_run.add_argument("--task-source", action="append", default=[])
+    daily_run.add_argument("--context-source", action="append", default=[])
+    daily_run.add_argument("--client", default="codex")
+    daily_run.add_argument("--repo-path", default=".")
+    daily_run.add_argument("--repo-clean", action="store_true")
+    daily_run.add_argument("--task-risk", choices=["low", "medium", "high"])
+    daily_run.add_argument("--daily-budget", type=int, default=180)
+    daily_run.add_argument("--max-file-changes", type=int, default=40)
+    daily_run.add_argument("--changed-file", action="append", default=[])
+    daily_run.add_argument("--tests-passed", action="store_true")
+    daily_run.add_argument("--force", action="store_true")
+    daily_run.add_argument(
+        "--workspace",
+        choices=[item.value for item in WorkspaceType],
+        help="Optional workspace override",
+    )
+
     return parser
 
 
@@ -184,6 +214,7 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
     service = FlowService.create_default()
     release_service = ReleaseService()
     principles_service = PrinciplesService.create_default()
+    daily_service = DailyImplementerService()
 
     try:
         if args.command == "init":
@@ -365,6 +396,42 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
                     print(f"- {path}")
             return 0
 
+        if args.command == "daily" and args.daily_command == "score":
+            task_sources = args.task_source or _default_task_sources()
+            tasks = daily_service.load_tasks(task_sources)
+            scores = daily_service.score_tasks(tasks, daily_budget_minutes=args.daily_budget)
+            print(_format_candidate_scores(scores))
+            return 0
+
+        if args.command == "daily" and args.daily_command == "run":
+            task_sources = args.task_source or _default_task_sources()
+            context_sources = args.context_source or _default_context_sources()
+
+            repo_state = RepoState(
+                is_clean=args.repo_clean,
+                root_path=args.repo_path,
+            )
+
+            result = daily_service.run_daily_feature_implementer(
+                task_sources=task_sources,
+                context_sources=context_sources,
+                repo_state=repo_state,
+                client=args.client,
+                force=args.force,
+                daily_budget_minutes=args.daily_budget,
+                task_risk=args.task_risk,
+                max_file_changes=args.max_file_changes,
+                simulate_changed_files=args.changed_file,
+                tests_passed=args.tests_passed,
+            )
+
+            if args.workspace:
+                # Optional manual override for demo/debug parity.
+                result.workspace_type = WorkspaceType(args.workspace)
+
+            print(render_daily_result(result))
+            return 0
+
     except (FlowError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -451,6 +518,32 @@ def _format_candidates(candidates) -> str:
         if candidate.last_test_score is not None:
             lines.append(f"  last_test_score: {candidate.last_test_score}")
     return "\n".join(lines)
+
+
+def _format_candidate_scores(scores) -> str:
+    if not scores:
+        return "No candidate scores"
+
+    lines: list[str] = []
+    for item in scores:
+        lines.append(f"- {item.task_key}: {item.score}")
+        lines.append(f"  reasons: {', '.join(item.reasons)}")
+    return "\n".join(lines)
+
+
+def _default_task_sources() -> list[str]:
+    return [
+        "dev/notes/ecosystem/tasks.md",
+        "dev/notes/tasks.md",
+    ]
+
+
+def _default_context_sources() -> list[str]:
+    return [
+        "dev/notes",
+        "README.md",
+        "release/release.yaml",
+    ]
 
 
 def main() -> int:
