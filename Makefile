@@ -1,4 +1,4 @@
-.PHONY: setup run test demo-c1 release-plan release-dry-run release-launch release-rollback demo-c2 demo-c3 demo-c4
+.PHONY: setup run test demo-c1 release-plan release-dry-run release-launch release-rollback demo-c2 demo-c3 demo-c4 demo-c5
 
 setup:
 	uv sync --group extras --group test
@@ -65,3 +65,14 @@ demo-c4:
 		--repo-path "$$PWD" \
 		--client codex \
 		--changed-file src/plain/components/c4_daily_runner/service.py
+
+demo-c5:
+	@set -e
+	uv run python -m tools.workflow.obsidian_ingest.cli run \
+		--note-root tests/fixtures/c5/obsidian/daily \
+		--note-root tests/fixtures/c5/obsidian/preproject \
+		--note-root tests/fixtures/c5/obsidian/workalongs \
+		--note-root tests/fixtures/c5/obsidian/dumps \
+		--force-full-scan
+	uv run python -m tools.workflow.obsidian_ingest.cli list --min-confidence 0.6
+	uv run python -m tools.workflow.obsidian_ingest.cli pending

@@ -164,3 +164,52 @@ make demo-c4
 ```
 
 Details: `dev/notes/demos/c4.md`.
+
+## C5: Obsidian Ideas Ingest + Backlinks
+
+The c5 layer ingests changed Obsidian notes into a structured entity store for review and downstream automation.
+
+Capabilities:
+- incremental changed-note scan using persisted file hash cursor
+- hybrid extraction (note title + checklist bullets)
+- default folder-to-kind mapping:
+  - `daily` -> `idea`
+  - `dumps` -> `idea`
+  - `workalongs` -> `experiment`
+  - `preproject` -> `preproject`
+- explicit backlink preservation on every extracted item (`source_refs`)
+- low-confidence review queue + duplicate candidate tracking
+- downstream query/update APIs:
+  - `get_items`
+  - `get_item_with_sources`
+  - `get_pending_review_items`
+  - `approve_item`
+  - `merge_items`
+  - `reclassify_item`
+
+CLI (via workflow wrapper):
+
+```bash
+uv run python -m tools.workflow.obsidian_ingest.cli run --note-root <path>
+uv run python -m tools.workflow.obsidian_ingest.cli list --kind feature --min-confidence 0.6
+uv run python -m tools.workflow.obsidian_ingest.cli get <item_id>
+uv run python -m tools.workflow.obsidian_ingest.cli pending
+uv run python -m tools.workflow.obsidian_ingest.cli approve <item_id>
+uv run python -m tools.workflow.obsidian_ingest.cli merge <primary_id> <duplicate_id>
+uv run python -m tools.workflow.obsidian_ingest.cli reclassify <item_id> project
+```
+
+Storage layout:
+- `data/obsidian_ingest/items.json`
+- `data/obsidian_ingest/review_queue.json`
+- `data/obsidian_ingest/duplicates.json`
+- `data/obsidian_ingest/runs/*.json`
+- `dev/notes/ecosystem/state/obsidian_ingest_state.json`
+
+Demo:
+
+```bash
+make demo-c5
+```
+
+Details: `dev/notes/demos/c5.md`.
