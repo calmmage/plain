@@ -1,0 +1,40 @@
+[
+  {
+    "task_key": "rv1",
+    "project_id": "prj_plain",
+    "feature_id": "feat_review_ui",
+    "original_vision": "Provide one review workspace with runnable instructions.",
+    "summary": "Manual packet from task submitter",
+    "cwd": ".",
+    "run_instructions": [
+      {
+        "title": "Run tests",
+        "command": "uv run pytest src tests",
+        "cwd": "."
+      }
+    ],
+    "changed_files": [
+      "src/plain/components/c6_review/models.py"
+    ],
+    "conversation_refs": [
+      "codex:session-rv1"
+    ]
+  },
+  {
+    "task_key": "rv2",
+    "project_id": "prj_plain",
+    "feature_id": "feat_review_ui",
+    "original_vision": "Provide one review workspace with runnable instructions.",
+    "summary": "Second manual packet row",
+    "cwd": ".",
+    "run_instructions": [
+      "make demo-c6"
+    ],
+    "changed_files": [
+      "src/plain/components/c6_review/service.py"
+    ],
+    "conversation_refs": [
+      "codex:session-rv2"
+    ]
+  }
+]
