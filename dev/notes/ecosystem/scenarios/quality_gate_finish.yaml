@@ -1,0 +1,26 @@
+scenario_id: quality_gate_finish
+kind: finish
+title: Quality gate finish
+description: Run lint, type-check, and tests before handing off for review.
+tags:
+  - quality
+  - finish
+  - gates
+steps:
+  - step_id: lint
+    title: Run lint
+    primitive: validation_check
+    command: uv run ruff check .
+  - step_id: typecheck
+    title: Run type checks
+    primitive: validation_check
+    command: uv run pyright
+  - step_id: tests
+    title: Run tests
+    primitive: validation_check
+    command: uv run pytest src tests
+  - step_id: human_gate
+    title: Human approval gate
+    primitive: human_confirmation
+    instruction: Confirm quality signals before merge.
+    requires_human: true

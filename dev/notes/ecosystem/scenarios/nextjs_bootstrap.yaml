@@ -1,0 +1,26 @@
+scenario_id: nextjs_bootstrap
+kind: start
+title: Next.js bootstrap
+description: Scaffold a Next.js app with baseline lint/build setup for frontend work.
+tags:
+  - nextjs
+  - frontend
+  - bootstrap
+steps:
+  - step_id: scaffold_nextjs
+    title: Scaffold project
+    primitive: shell_command
+    command: npx create-next-app@latest web --typescript --eslint --app --src-dir --import-alias @/*
+  - step_id: install_and_lint
+    title: Install dependencies and lint
+    primitive: shell_command
+    command: cd web && npm install && npm run lint
+  - step_id: run_build
+    title: Build once to verify baseline
+    primitive: validation_check
+    command: cd web && npm run build
+  - step_id: confirm_visual_flow
+    title: Confirm visual design baseline
+    primitive: human_confirmation
+    instruction: Validate app skeleton and confirm design flow requirements.
+    requires_human: true

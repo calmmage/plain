@@ -1,0 +1,26 @@
+scenario_id: python_uv_bootstrap
+kind: start
+title: Python UV bootstrap
+description: Initialize a Python project with uv, base dependencies, and project instructions.
+tags:
+  - python
+  - uv
+  - bootstrap
+steps:
+  - step_id: init_repo
+    title: Initialize uv project
+    primitive: shell_command
+    command: uv init
+  - step_id: sync_deps
+    title: Sync dependencies
+    primitive: shell_command
+    command: uv sync --group extras --group test
+  - step_id: apply_instructions
+    title: Deploy AI instruction bundle
+    primitive: shell_command
+    command: uv run python -m tools.workflow.principles.cli deploy --target AGENTS.md --target CLAUDE.md --target GEMINI.md
+  - step_id: confirm_bootstrap
+    title: Confirm bootstrap baseline
+    primitive: human_confirmation
+    instruction: Confirm dependencies and project instructions are in place.
+    requires_human: true

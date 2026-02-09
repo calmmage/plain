@@ -1,0 +1,26 @@
+scenario_id: repo_hygiene_bootstrap
+kind: start
+title: Repo hygiene bootstrap
+description: Apply baseline hygiene checks and repository fixer conventions.
+tags:
+  - hygiene
+  - lint
+  - bootstrap
+steps:
+  - step_id: run_repo_fixer
+    title: Apply repo fixer defaults
+    primitive: shell_command
+    command: typer tools/misc/repo_fixer/repo_fixer.py run run-all
+  - step_id: run_lint
+    title: Run ruff lint checks
+    primitive: validation_check
+    command: uv run ruff check .
+  - step_id: run_types
+    title: Run pyright type checks
+    primitive: validation_check
+    command: uv run pyright
+  - step_id: confirm_clean_state
+    title: Confirm repo hygiene baseline
+    primitive: human_confirmation
+    instruction: Review warnings and confirm baseline quality state.
+    requires_human: true

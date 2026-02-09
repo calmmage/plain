@@ -10,6 +10,9 @@ from plain.components.c7_bootstrap.models import (
     StepPrimitive,
     StepRunRecord,
 )
+from plain.components.c7_bootstrap.render import render_run, render_runs, render_scenarios
+from plain.components.c7_bootstrap.repository import BootstrapRepository
+from plain.components.c7_bootstrap.service import BootstrapService
 
 __all__ = [
     "BootstrapScenario",
@@ -20,4 +23,9 @@ __all__ = [
     "ScenarioStep",
     "StepPrimitive",
     "StepRunRecord",
+    "render_run",
+    "render_runs",
+    "render_scenarios",
+    "BootstrapRepository",
+    "BootstrapService",
 ]

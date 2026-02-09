@@ -1,0 +1,22 @@
+scenario_id: release_ready_finish
+kind: finish
+title: Release ready finish
+description: Validate release plan and dry-run gates before launch readiness.
+tags:
+  - release
+  - finish
+  - gates
+steps:
+  - step_id: release_plan
+    title: Generate release runbook
+    primitive: shell_command
+    command: uv run python -m tools.release.cli plan --spec release/release.yaml
+  - step_id: release_dry_run
+    title: Run release dry-run checks
+    primitive: validation_check
+    command: uv run python -m tools.release.cli dry-run --spec release/release.yaml
+  - step_id: launch_checkpoint
+    title: Confirm launch readiness with human
+    primitive: human_confirmation
+    instruction: Confirm gates and changelog before final launch command.
+    requires_human: true

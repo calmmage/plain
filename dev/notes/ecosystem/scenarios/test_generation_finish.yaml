@@ -1,0 +1,22 @@
+scenario_id: test_generation_finish
+kind: finish
+title: Test generation finish
+description: Generate missing test coverage and validate new tests pass.
+tags:
+  - tests
+  - finish
+  - coverage
+steps:
+  - step_id: identify_gaps
+    title: Identify missing test areas
+    primitive: agent_prompt
+    instruction: Identify critical untested paths and propose focused test cases.
+  - step_id: implement_tests
+    title: Implement proposed tests
+    primitive: shell_command
+    command: uv run pytest -q
+  - step_id: confirm_test_quality
+    title: Human test quality check
+    primitive: human_confirmation
+    instruction: Confirm generated tests are readable and meaningful.
+    requires_human: true
