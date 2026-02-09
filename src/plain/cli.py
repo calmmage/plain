@@ -30,6 +30,8 @@ from plain.components.c6_review.service import ReviewService
 from plain.components.c7_bootstrap.models import ExecutionMode, ScenarioKind
 from plain.components.c7_bootstrap.render import render_run, render_runs, render_scenarios
 from plain.components.c7_bootstrap.service import BootstrapService
+from plain.components.c8_orchestrator.render import render_workflow_status
+from plain.components.c8_orchestrator.service import OrchestratorService
 from plain.core.models import FlowError, Phase
 
 
@@ -348,6 +350,71 @@ def build_parser() -> argparse.ArgumentParser:
     bootstrap_runs = bootstrap_sub.add_parser("runs", help="List historical scenario runs")
     bootstrap_runs.add_argument("--scenario-id")
 
+    workflow_parser = subparsers.add_parser(
+        "workflow", help="Unified integrated command surface across modules M1..M7"
+    )
+    workflow_sub = workflow_parser.add_subparsers(
+        dest="workflow_command", required=True
+    )
+
+    workflow_status = workflow_sub.add_parser("status", help="Global system status summary")
+    workflow_status.add_argument("--project")
+
+    workflow_ingest = workflow_sub.add_parser("ingest", help="Run M5 ingest flow")
+    workflow_ingest.add_argument("--note-root", action="append", default=[])
+    workflow_ingest.add_argument("--force-full-scan", action="store_true")
+
+    workflow_daily = workflow_sub.add_parser("run-daily", help="Run M4 daily loop")
+    workflow_daily.add_argument("--task-source", action="append", default=[])
+    workflow_daily.add_argument("--context-source", action="append", default=[])
+    workflow_daily.add_argument("--client", default="codex")
+    workflow_daily.add_argument("--repo-path", default=".")
+    workflow_daily.add_argument("--repo-clean", action="store_true")
+    workflow_daily.add_argument("--force", action="store_true")
+
+    workflow_review = workflow_sub.add_parser("review-queue", help="Show M6 review queue")
+    workflow_review.add_argument("--status", choices=[item.value for item in ReviewStatus])
+    workflow_review.add_argument("--ready-only", action="store_true")
+
+    workflow_board = workflow_sub.add_parser("phase-board", help="Show M1 board view")
+    workflow_board.add_argument("project")
+
+    workflow_release = workflow_sub.add_parser(
+        "release-dry-run", help="Run M2 release dry-run checks"
+    )
+    workflow_release.add_argument("--spec", default="release/release.yaml")
+
+    workflow_principles = workflow_sub.add_parser(
+        "principles-capture", help="Capture principle via M3"
+    )
+    workflow_principles.add_argument("--title", required=True)
+    workflow_principles.add_argument("--raw", required=True)
+    workflow_principles.add_argument("--source", required=True)
+    workflow_principles.add_argument("--normalized-rule")
+    workflow_principles.add_argument("--rationale")
+    workflow_principles.add_argument("--tag", action="append", default=[])
+    workflow_principles.add_argument("--source-session-id")
+
+    workflow_bootstrap = workflow_sub.add_parser(
+        "bootstrap-run", help="Run M7 bootstrap scenario"
+    )
+    workflow_bootstrap.add_argument("scenario_id")
+    workflow_bootstrap.add_argument("--interactive", action="store_true")
+    workflow_bootstrap.add_argument("--observe", action="store_true")
+    workflow_bootstrap.add_argument("--max-steps", type=int, default=40)
+    workflow_bootstrap.add_argument("--max-wall-time-sec", type=int, default=1800)
+    workflow_bootstrap.add_argument("--allow-destructive", action="store_true")
+
+    workflow_bootstrap_resume = workflow_sub.add_parser(
+        "bootstrap-resume", help="Resume M7 bootstrap scenario run"
+    )
+    workflow_bootstrap_resume.add_argument("run_id")
+    workflow_bootstrap_resume.add_argument("--interactive", action="store_true")
+    workflow_bootstrap_resume.add_argument("--observe", action="store_true")
+    workflow_bootstrap_resume.add_argument("--max-steps", type=int, default=40)
+    workflow_bootstrap_resume.add_argument("--max-wall-time-sec", type=int, default=1800)
+    workflow_bootstrap_resume.add_argument("--allow-destructive", action="store_true")
+
     return parser
 
 
@@ -361,6 +428,7 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
     obsidian_service = ObsidianIngestService.create_default()
     review_service = ReviewService.create_default()
     bootstrap_service = BootstrapService.create_default()
+    orchestrator_service = OrchestratorService.create_default()
 
     try:
         if args.command == "init":
@@ -728,6 +796,86 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
         if args.command == "bootstrap" and args.bootstrap_command == "runs":
             runs = bootstrap_service.list_runs(scenario_id=args.scenario_id)
             print(render_runs(runs))
+            return 0
+
+        if args.command == "workflow" and args.workflow_command == "status":
+            snapshot = orchestrator_service.workflow_status(project=args.project)
+            print(render_workflow_status(snapshot))
+            return 0
+
+        if args.command == "workflow" and args.workflow_command == "ingest":
+            result = orchestrator_service.run_ingest(
+                note_roots=args.note_root or None,
+                force_full_scan=args.force_full_scan,
+            )
+            print(render_obsidian_ingest_result(result))
+            return 0
+
+        if args.command == "workflow" and args.workflow_command == "run-daily":
+            result = orchestrator_service.run_daily(
+                task_sources=args.task_source or None,
+                context_sources=args.context_source or None,
+                repo_path=args.repo_path,
+                repo_clean=args.repo_clean,
+                client=args.client,
+                force=args.force,
+            )
+            print(render_daily_result(result))
+            return 0
+
+        if args.command == "workflow" and args.workflow_command == "review-queue":
+            items = orchestrator_service.review_queue(
+                status=args.status,
+                ready_only=args.ready_only,
+            )
+            print(render_review_table(items))
+            return 0
+
+        if args.command == "workflow" and args.workflow_command == "phase-board":
+            rows = orchestrator_service.phase_board(args.project)
+            print(render_table(rows))
+            return 0
+
+        if args.command == "workflow" and args.workflow_command == "release-dry-run":
+            report = orchestrator_service.release_dry_run(spec_path=args.spec)
+            print(render_dry_run_report(report))
+            return 0
+
+        if args.command == "workflow" and args.workflow_command == "principles-capture":
+            note = orchestrator_service.principles_capture(
+                title=args.title,
+                raw=args.raw,
+                source=args.source,
+                normalized_rule=args.normalized_rule,
+                rationale=args.rationale,
+                tag=args.tag,
+                source_session_id=args.source_session_id,
+            )
+            print(f"captured_principle={note.principle_id}")
+            return 0
+
+        if args.command == "workflow" and args.workflow_command == "bootstrap-run":
+            mode = _resolve_bootstrap_mode(args.interactive, args.observe)
+            run = orchestrator_service.bootstrap_run(
+                scenario_id=args.scenario_id,
+                mode=mode,
+                max_steps=args.max_steps,
+                max_wall_time_sec=args.max_wall_time_sec,
+                allow_destructive=args.allow_destructive,
+            )
+            print(render_run(run))
+            return 0
+
+        if args.command == "workflow" and args.workflow_command == "bootstrap-resume":
+            mode = _resolve_bootstrap_mode(args.interactive, args.observe)
+            run = orchestrator_service.bootstrap_resume(
+                run_id=args.run_id,
+                mode=mode,
+                max_steps=args.max_steps,
+                max_wall_time_sec=args.max_wall_time_sec,
+                allow_destructive=args.allow_destructive,
+            )
+            print(render_run(run))
             return 0
 
     except (FlowError, ValueError) as exc:

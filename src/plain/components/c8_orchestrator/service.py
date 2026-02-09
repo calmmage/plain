@@ -157,6 +157,22 @@ class OrchestratorService:
             allow_destructive=allow_destructive,
         )
 
+    def bootstrap_resume(
+        self,
+        run_id: str,
+        mode: str | None = None,
+        max_steps: int = 40,
+        max_wall_time_sec: int = 1800,
+        allow_destructive: bool = False,
+    ) -> ScenarioRun:
+        return self.bootstrap_service.resume_run(
+            run_id=run_id,
+            mode=mode,
+            max_steps=max_steps,
+            max_wall_time_sec=max_wall_time_sec,
+            allow_destructive=allow_destructive,
+        )
+
     # Global status snapshot
     def workflow_status(self, project: str | None = None) -> WorkflowStatusSnapshot:
         modules = [
