@@ -14,11 +14,19 @@ from plain.components.c4_daily_runner.render import render_daily_result
 from plain.components.c4_daily_runner.service import DailyImplementerService
 from plain.components.c5_ingest.models import ItemKind
 from plain.components.c5_ingest.render import (
-    render_ingest_result,
+    render_ingest_result as render_obsidian_ingest_result,
     render_item_with_sources,
     render_items,
 )
 from plain.components.c5_ingest.service import ObsidianIngestService
+from plain.components.c6_review.models import FeedbackVerdict, ReviewStatus
+from plain.components.c6_review.render import (
+    render_ingest_result as render_review_ingest_result,
+    render_instruction,
+    render_review_item,
+    render_review_table,
+)
+from plain.components.c6_review.service import ReviewService
 from plain.core.models import FlowError, Phase
 
 
@@ -250,6 +258,63 @@ def build_parser() -> argparse.ArgumentParser:
     obsidian_reclassify.add_argument("item_id")
     obsidian_reclassify.add_argument("kind", choices=[item.value for item in ItemKind])
 
+    review_parser = subparsers.add_parser(
+        "review", help="Review queue ingest, table view, and feedback actions"
+    )
+    review_sub = review_parser.add_subparsers(
+        dest="review_command", required=True
+    )
+
+    review_ingest = review_sub.add_parser(
+        "ingest", help="Ingest review packets into local review queue"
+    )
+    review_ingest.add_argument("--packet-path", action="append", default=[])
+    review_ingest.add_argument("--project-id")
+    review_ingest.add_argument("--feature-id")
+    review_ingest.add_argument("--original-vision")
+
+    review_list = review_sub.add_parser("list", help="List review queue items")
+    review_list.add_argument("--status", choices=[item.value for item in ReviewStatus])
+    review_list.add_argument("--ready-only", action="store_true")
+
+    review_show = review_sub.add_parser("show", help="Show one review item details")
+    review_show.add_argument("review_id")
+
+    review_start = review_sub.add_parser("start", help="Mark review as in_review")
+    review_start.add_argument("review_id")
+
+    review_run = review_sub.add_parser("run", help="Show one runnable review instruction")
+    review_run.add_argument("review_id")
+    review_run.add_argument("--index", type=int, default=1)
+
+    review_feedback = review_sub.add_parser("feedback", help="Append feedback entry")
+    review_feedback.add_argument("review_id")
+    review_feedback.add_argument(
+        "--verdict", required=True, choices=[item.value for item in FeedbackVerdict]
+    )
+    review_feedback.add_argument("--notes", required=True)
+    review_feedback.add_argument("--tag", action="append", default=[])
+    review_feedback.add_argument("--author", default="human")
+
+    review_approve = review_sub.add_parser("approve", help="Approve review item")
+    review_approve.add_argument("review_id")
+    review_approve.add_argument("--notes", default="")
+    review_approve.add_argument("--author", default="human")
+
+    review_request = review_sub.add_parser(
+        "request-changes", help="Request changes for review item"
+    )
+    review_request.add_argument("review_id")
+    review_request.add_argument("--notes", required=True)
+    review_request.add_argument("--tag", action="append", default=[])
+    review_request.add_argument("--author", default="human")
+
+    review_reject = review_sub.add_parser("reject", help="Reject review item")
+    review_reject.add_argument("review_id")
+    review_reject.add_argument("--notes", required=True)
+    review_reject.add_argument("--tag", action="append", default=[])
+    review_reject.add_argument("--author", default="human")
+
     return parser
 
 
@@ -261,6 +326,7 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
     principles_service = PrinciplesService.create_default()
     daily_service = DailyImplementerService()
     obsidian_service = ObsidianIngestService.create_default()
+    review_service = ReviewService.create_default()
 
     try:
         if args.command == "init":
@@ -480,7 +546,7 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
                 note_roots=roots,
                 force_full_scan=args.force_full_scan,
             )
-            print(render_ingest_result(result))
+            print(render_obsidian_ingest_result(result))
             return 0
 
         if args.command == "obsidian" and args.obsidian_command == "list":
@@ -515,6 +581,85 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
         if args.command == "obsidian" and args.obsidian_command == "reclassify":
             item = obsidian_service.reclassify_item(args.item_id, args.kind)
             print(render_item_with_sources(item))
+            return 0
+
+        if args.command == "review" and args.review_command == "ingest":
+            packet_paths = args.packet_path or ["dev/notes/ecosystem/review_packets"]
+            result = review_service.ingest_packets(
+                packet_sources=packet_paths,
+                project_id=args.project_id,
+                feature_id=args.feature_id,
+                original_vision=args.original_vision,
+            )
+            print(render_review_ingest_result(result))
+            return 0
+
+        if args.command == "review" and args.review_command == "list":
+            items = review_service.list_items(status=args.status, ready_only=args.ready_only)
+            print(render_review_table(items))
+            return 0
+
+        if args.command == "review" and args.review_command == "show":
+            item = review_service.get_item(args.review_id)
+            feedback_entries = review_service.get_feedback(args.review_id)
+            print(render_review_item(item, feedback_entries))
+            return 0
+
+        if args.command == "review" and args.review_command == "start":
+            item = review_service.start_review(args.review_id)
+            feedback_entries = review_service.get_feedback(args.review_id)
+            print(render_review_item(item, feedback_entries))
+            return 0
+
+        if args.command == "review" and args.review_command == "run":
+            index = max(args.index - 1, 0)
+            instruction = review_service.get_run_instruction(args.review_id, index=index)
+            print(render_instruction(instruction))
+            return 0
+
+        if args.command == "review" and args.review_command == "feedback":
+            entry = review_service.add_feedback(
+                review_id=args.review_id,
+                verdict=args.verdict,
+                notes=args.notes,
+                tags=args.tag,
+                author=args.author,
+            )
+            print(f"review_id={entry.review_id}")
+            print(f"verdict={entry.verdict.value}")
+            print(f"created_at={entry.created_at.isoformat()}")
+            return 0
+
+        if args.command == "review" and args.review_command == "approve":
+            item = review_service.approve(
+                review_id=args.review_id,
+                notes=args.notes,
+                author=args.author,
+            )
+            feedback_entries = review_service.get_feedback(args.review_id)
+            print(render_review_item(item, feedback_entries))
+            return 0
+
+        if args.command == "review" and args.review_command == "request-changes":
+            item = review_service.request_changes(
+                review_id=args.review_id,
+                notes=args.notes,
+                tags=args.tag,
+                author=args.author,
+            )
+            feedback_entries = review_service.get_feedback(args.review_id)
+            print(render_review_item(item, feedback_entries))
+            return 0
+
+        if args.command == "review" and args.review_command == "reject":
+            item = review_service.reject(
+                review_id=args.review_id,
+                notes=args.notes,
+                tags=args.tag,
+                author=args.author,
+            )
+            feedback_entries = review_service.get_feedback(args.review_id)
+            print(render_review_item(item, feedback_entries))
             return 0
 
     except (FlowError, ValueError) as exc:
