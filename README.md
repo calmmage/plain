@@ -1,96 +1,59 @@
-# python-project-template
+# plain
 
-## setup
+`plain` is an incremental implementation of the "human-driven AI projects" PRD stack.
+Component `c1` implements a local-first three-phase flow engine.
+
+## Setup
 
 ```shell
 pre-commit install
 ```
 
-## More libs to use if you want
+## C1: Three-Phase Flow Engine
 
-```toml
-# http framework
-# fastapi = "*"
+The c1 layer tracks project features across:
+- `make_it_work`
+- `test`
+- `polish`
 
-# request libs
-# uvicorn = "*"
-# httpx = "*"
+Core model shape:
+- `ProjectFlow`: project identity, repo path, feature list, tags, timestamps
+- `FeatureFlow`: feature identity, vision, current phase, timestamps
+- `PhaseRecord`: status, artifacts, feedback, blockers, conversation links
+- structured phase metadata per status:
+  - `code_links`
+  - `entry_points`
+  - `explanations`
 
-# CLI libs
-# typer = "*"
-# click = "*"
-# fire = "*"
-# beaupy = "*"
+Persistence:
+- markdown + YAML frontmatter per project
+- path: `dev/notes/ecosystem/flows/<project_slug>.md`
 
-# UI / frontend libs
-# fastui = "*"
-# streamlit = "*"
-# dash = "*"
+CLI (via `src/main.py`):
 
-# data models
-# pydantic = "*"
-# pydantic-settings = "*"
-
-# data processing
-# pandas = "*"
-# numpy = "*"
-# scipy = "*"
-
-# data visualization
-# matplotlib = "*"
-# seaborn = "*"
-# plotly = "*"
-# altair = "*"
-
-# ml
-# scikit-learn = "*"
-# statsmodels = "*"
-# dask = "*"
-# xgboost = "*"
-
-# apis
-# openapi = "*"
-# graphql = "*"
-
-# libs - google drive, dropbox, git
-# pydrive2 = "*"
-# google-api-python-client = "*"
-# dropbox = "*"
-# gitpython = "*"
-
-# ---------------------------------
-
-# utils
-# pyperclip = "*"
-# pydub = "*"
-# pytz = "*"
-# python-dotenv = "*"
-
-# random untested libs
-# python-magic = "*"
-# beautifulsoup4 = "*"
-# dateparser = "*"
-# emoji = "*"
-# humanize = "*"
-# inflection = "*"
-# phonenumbers = "*"
-# qrcode = "*"
-# wordcloud = "*"
-# pyyaml = "*"
-# toml = "*"
-# json5 = "*"
-# dataclasses = "*"
-# dataclasses-json = "*"
-
-# db
-# sqlalchemy = "*"
-# asyncpg = "*"
-# databases = "*"
-# vertex = "*"
-# mongoengine = "*"
-
-# testing
-# hypothesis = "*"
-# pytest-cov = "*"
-# pytest-asyncio = "*"
+```bash
+uv run python src/main.py init <project_name> --repo <path>
+uv run python src/main.py feature add <project> "<title>" --vision "..."
+uv run python src/main.py feature show <project> <feature_id>
+uv run python src/main.py phase start <project> <feature_id> <phase>
+uv run python src/main.py phase advance <project> <feature_id>
+uv run python src/main.py feedback add <project> <feature_id> --text "..."
+uv run python src/main.py conv link <project> <feature_id> --client codex --session-id ... --cwd ...
+uv run python src/main.py board <project>
+uv run python src/main.py snapshot <project>
 ```
+
+Additional c1 helper commands:
+- `artifact add` to attach evidence for advancement checks
+- `meta add` to store per-phase links/entrypoints/explanations
+- `conv resume` to print latest resume command per feature-phase
+
+## Demo
+
+Run the c1 end-to-end walkthrough:
+
+```bash
+make demo-c1
+```
+
+Detailed demo notes: `dev/notes/demos/c1.md`.
