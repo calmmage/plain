@@ -9,7 +9,7 @@ from plain.components.c2_release.render import render_dry_run_report, render_lau
 from plain.components.c2_release.service import ReleaseService
 from plain.components.c3_principles.models import SkillTargetScope
 from plain.components.c3_principles.service import PrinciplesService
-from plain.components.c4_daily_runner.models import RepoState, WorkspaceType
+from plain.components.c4_daily_runner.models import RepoState
 from plain.components.c4_daily_runner.render import render_daily_result
 from plain.components.c4_daily_runner.service import DailyImplementerService
 from plain.core.models import FlowError, Phase
@@ -197,13 +197,9 @@ def build_parser() -> argparse.ArgumentParser:
     daily_run.add_argument("--daily-budget", type=int, default=180)
     daily_run.add_argument("--max-file-changes", type=int, default=40)
     daily_run.add_argument("--changed-file", action="append", default=[])
-    daily_run.add_argument("--tests-passed", action="store_true")
+    daily_run.add_argument("--tests-passed", dest="tests_passed", action="store_true", default=True)
+    daily_run.add_argument("--tests-failed", dest="tests_passed", action="store_false")
     daily_run.add_argument("--force", action="store_true")
-    daily_run.add_argument(
-        "--workspace",
-        choices=[item.value for item in WorkspaceType],
-        help="Optional workspace override",
-    )
 
     return parser
 
@@ -424,10 +420,6 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
                 simulate_changed_files=args.changed_file,
                 tests_passed=args.tests_passed,
             )
-
-            if args.workspace:
-                # Optional manual override for demo/debug parity.
-                result.workspace_type = WorkspaceType(args.workspace)
 
             print(render_daily_result(result))
             return 0
