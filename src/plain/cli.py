@@ -12,6 +12,13 @@ from plain.components.c3_principles.service import PrinciplesService
 from plain.components.c4_daily_runner.models import RepoState
 from plain.components.c4_daily_runner.render import render_daily_result
 from plain.components.c4_daily_runner.service import DailyImplementerService
+from plain.components.c5_ingest.models import ItemKind
+from plain.components.c5_ingest.render import (
+    render_ingest_result,
+    render_item_with_sources,
+    render_items,
+)
+from plain.components.c5_ingest.service import ObsidianIngestService
 from plain.core.models import FlowError, Phase
 
 
@@ -201,6 +208,48 @@ def build_parser() -> argparse.ArgumentParser:
     daily_run.add_argument("--tests-failed", dest="tests_passed", action="store_false")
     daily_run.add_argument("--force", action="store_true")
 
+    obsidian_parser = subparsers.add_parser(
+        "obsidian", help="Run Obsidian ingestion and query extracted items"
+    )
+    obsidian_sub = obsidian_parser.add_subparsers(
+        dest="obsidian_command", required=True
+    )
+
+    obsidian_run = obsidian_sub.add_parser("run", help="Run incremental ingest")
+    obsidian_run.add_argument("--note-root", action="append", default=[])
+    obsidian_run.add_argument("--force-full-scan", action="store_true")
+
+    obsidian_list = obsidian_sub.add_parser("list", help="List ingested items")
+    obsidian_list.add_argument("--kind", choices=[item.value for item in ItemKind])
+    obsidian_list.add_argument("--project-id")
+    obsidian_list.add_argument("--min-confidence", type=float, default=0.0)
+
+    obsidian_get = obsidian_sub.add_parser(
+        "get", help="Get one ingested item with backlinks"
+    )
+    obsidian_get.add_argument("item_id")
+
+    obsidian_pending = obsidian_sub.add_parser(
+        "pending", help="List pending low-confidence review items"
+    )
+
+    obsidian_approve = obsidian_sub.add_parser(
+        "approve", help="Approve one ingested item"
+    )
+    obsidian_approve.add_argument("item_id")
+
+    obsidian_merge = obsidian_sub.add_parser(
+        "merge", help="Merge duplicate item into primary"
+    )
+    obsidian_merge.add_argument("primary_id")
+    obsidian_merge.add_argument("duplicate_id")
+
+    obsidian_reclassify = obsidian_sub.add_parser(
+        "reclassify", help="Reclassify item kind"
+    )
+    obsidian_reclassify.add_argument("item_id")
+    obsidian_reclassify.add_argument("kind", choices=[item.value for item in ItemKind])
+
     return parser
 
 
@@ -211,6 +260,7 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
     release_service = ReleaseService()
     principles_service = PrinciplesService.create_default()
     daily_service = DailyImplementerService()
+    obsidian_service = ObsidianIngestService.create_default()
 
     try:
         if args.command == "init":
@@ -422,6 +472,49 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
             )
 
             print(render_daily_result(result))
+            return 0
+
+        if args.command == "obsidian" and args.obsidian_command == "run":
+            roots = args.note_root or None
+            result = obsidian_service.run_ingest(
+                note_roots=roots,
+                force_full_scan=args.force_full_scan,
+            )
+            print(render_ingest_result(result))
+            return 0
+
+        if args.command == "obsidian" and args.obsidian_command == "list":
+            items = obsidian_service.get_items(
+                kind=args.kind,
+                project_id=args.project_id,
+                min_confidence=args.min_confidence,
+            )
+            print(render_items(items))
+            return 0
+
+        if args.command == "obsidian" and args.obsidian_command == "get":
+            item = obsidian_service.get_item_with_sources(args.item_id)
+            print(render_item_with_sources(item))
+            return 0
+
+        if args.command == "obsidian" and args.obsidian_command == "pending":
+            items = obsidian_service.get_pending_review_items()
+            print(render_items(items))
+            return 0
+
+        if args.command == "obsidian" and args.obsidian_command == "approve":
+            item = obsidian_service.approve_item(args.item_id)
+            print(render_item_with_sources(item))
+            return 0
+
+        if args.command == "obsidian" and args.obsidian_command == "merge":
+            item = obsidian_service.merge_items(args.primary_id, args.duplicate_id)
+            print(render_item_with_sources(item))
+            return 0
+
+        if args.command == "obsidian" and args.obsidian_command == "reclassify":
+            item = obsidian_service.reclassify_item(args.item_id, args.kind)
+            print(render_item_with_sources(item))
             return 0
 
     except (FlowError, ValueError) as exc:
