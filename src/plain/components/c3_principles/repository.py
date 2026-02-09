@@ -8,6 +8,7 @@ from plain.components.c3_principles.models import (
     PrincipleNote,
     PrincipleStatus,
     SkillCandidate,
+    utc_now,
 )
 from plain.core.models import FlowError
 
@@ -63,21 +64,26 @@ class PrinciplesRepository:
         status = status.lower().strip()
         notes: list[PrincipleNote] = []
 
-        if status in ("all", PrincipleStatus.DRAFT.value):
-            for path in sorted(self.inbox_dir.glob("*.md")):
-                data, _ = split_frontmatter(path.read_text())
-                notes.append(PrincipleNote.from_dict(data))
+        for path in sorted(self.inbox_dir.glob("*.md")):
+            data, _ = split_frontmatter(path.read_text())
+            note = PrincipleNote.from_dict(data)
+            if status not in ("all", note.status.value):
+                continue
+            notes.append(note)
 
-        if status in ("all", PrincipleStatus.APPROVED.value):
-            for path in sorted(self.approved_dir.glob("*.md")):
-                data, _ = split_frontmatter(path.read_text())
-                notes.append(PrincipleNote.from_dict(data))
+        for path in sorted(self.approved_dir.glob("*.md")):
+            data, _ = split_frontmatter(path.read_text())
+            note = PrincipleNote.from_dict(data)
+            if status not in ("all", note.status.value):
+                continue
+            notes.append(note)
 
         return sorted(notes, key=lambda n: n.created_at)
 
     def move_principle_to_approved(self, principle_id: str) -> Path:
         note = self.load_principle(principle_id)
         note.status = PrincipleStatus.APPROVED
+        note.updated_at = utc_now()
 
         inbox_path = self.inbox_dir / f"{principle_id}.md"
         if inbox_path.exists():
