@@ -7,6 +7,8 @@ from typing import Sequence
 from plain.components.c1_flow.service import FlowService
 from plain.components.c2_release.render import render_dry_run_report, render_launch_pack, render_runbook
 from plain.components.c2_release.service import ReleaseService
+from plain.components.c3_principles.models import SkillTargetScope
+from plain.components.c3_principles.service import PrinciplesService
 from plain.core.models import FlowError, Phase
 
 
@@ -113,6 +115,66 @@ def build_parser() -> argparse.ArgumentParser:
     release_rollback = release_sub.add_parser("rollback", help="Run rollback flow")
     release_rollback.add_argument("--spec", default="release/release.yaml")
 
+    principle_parser = subparsers.add_parser(
+        "principle", help="Capture and promote principles into reusable skills"
+    )
+    principle_sub = principle_parser.add_subparsers(
+        dest="principle_command", required=True
+    )
+
+    principle_capture = principle_sub.add_parser(
+        "capture", help="Capture a principle note"
+    )
+    principle_capture.add_argument("--title", required=True)
+    principle_capture.add_argument("--raw", required=True)
+    principle_capture.add_argument("--source", required=True)
+    principle_capture.add_argument("--normalized-rule")
+    principle_capture.add_argument("--rationale")
+    principle_capture.add_argument("--example-good")
+    principle_capture.add_argument("--example-bad")
+    principle_capture.add_argument("--tag", action="append", default=[])
+    principle_capture.add_argument("--source-session-id")
+
+    principle_list = principle_sub.add_parser("list", help="List captured principles")
+    principle_list.add_argument(
+        "--status", default="all", choices=["all", "draft", "approved"]
+    )
+
+    principle_list_candidates = principle_sub.add_parser(
+        "list-candidates", help="List skill candidates"
+    )
+    principle_list_candidates.add_argument(
+        "--status", default="all", choices=["all", "draft", "review", "approved", "rejected"]
+    )
+
+    principle_promote = principle_sub.add_parser(
+        "promote", help="Promote principle(s) into skill candidate"
+    )
+    principle_promote.add_argument("principle_id")
+    principle_promote.add_argument("--skill-name", required=True)
+    principle_promote.add_argument(
+        "--scope", default=SkillTargetScope.CODING.value, choices=[item.value for item in SkillTargetScope]
+    )
+    principle_promote.add_argument(
+        "--include-principle-id", action="append", default=[]
+    )
+
+    principle_test = principle_sub.add_parser(
+        "test-skill", help="Run rubric check for generated skill candidate"
+    )
+    principle_test.add_argument("candidate_id")
+    principle_test.add_argument("--prompt", required=True)
+
+    principle_approve = principle_sub.add_parser(
+        "approve-skill", help="Approve reviewed skill candidate"
+    )
+    principle_approve.add_argument("candidate_id")
+
+    principle_deploy = principle_sub.add_parser(
+        "deploy", help="Deploy approved principle bundle into instruction files"
+    )
+    principle_deploy.add_argument("--target", action="append", default=None)
+
     return parser
 
 
@@ -121,6 +183,7 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     service = FlowService.create_default()
     release_service = ReleaseService()
+    principles_service = PrinciplesService.create_default()
 
     try:
         if args.command == "init":
@@ -236,6 +299,72 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
             print(f"rollback_recorded={incident}")
             return 0
 
+        if args.command == "principle" and args.principle_command == "capture":
+            note = principles_service.capture(
+                title=args.title,
+                raw_quote=args.raw,
+                source_path=args.source,
+                normalized_rule=args.normalized_rule,
+                rationale=args.rationale,
+                example_good=args.example_good,
+                example_bad=args.example_bad,
+                tags=args.tag,
+                source_session_id=args.source_session_id,
+            )
+            print(f"captured_principle={note.principle_id}")
+            return 0
+
+        if args.command == "principle" and args.principle_command == "list":
+            notes = principles_service.list_principles(status=args.status)
+            print(_format_principles(notes))
+            return 0
+
+        if args.command == "principle" and args.principle_command == "list-candidates":
+            candidates = principles_service.list_candidates(status=args.status)
+            print(_format_candidates(candidates))
+            return 0
+
+        if args.command == "principle" and args.principle_command == "promote":
+            candidate = principles_service.promote(
+                principle_id=args.principle_id,
+                skill_name=args.skill_name,
+                target_scope=args.scope,
+                include_principle_ids=args.include_principle_id,
+            )
+            print(f"candidate_id={candidate.candidate_id}")
+            if candidate.skill_path:
+                print(f"skill_path={candidate.skill_path}")
+            return 0
+
+        if args.command == "principle" and args.principle_command == "test-skill":
+            result = principles_service.test_skill(
+                candidate_id=args.candidate_id, prompt=args.prompt
+            )
+            print(f"candidate_id={result.candidate_id}")
+            print(f"score={result.score}")
+            print(f"passed={str(result.passed).lower()}")
+            print("notes:")
+            for note in result.notes:
+                print(f"- {note}")
+            return 0
+
+        if args.command == "principle" and args.principle_command == "approve-skill":
+            candidate = principles_service.approve_skill(args.candidate_id)
+            print(f"approved_candidate={candidate.candidate_id}")
+            print(f"status={candidate.status.value}")
+            return 0
+
+        if args.command == "principle" and args.principle_command == "deploy":
+            result = principles_service.deploy_approved_principles(targets=args.target)
+            print(f"bundle_path={result.bundle_path}")
+            print("modified_files:")
+            if not result.modified_files:
+                print("- none")
+            else:
+                for path in result.modified_files:
+                    print(f"- {path}")
+            return 0
+
     except (FlowError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -292,6 +421,35 @@ def _format_feature(feature) -> str:
             lines.append("  explanations:")
             lines.extend(f"    - {item}" for item in phase.explanations)
 
+    return "\n".join(lines)
+
+
+def _format_principles(notes) -> str:
+    if not notes:
+        return "No principles found"
+
+    lines: list[str] = []
+    for note in notes:
+        lines.append(f"- {note.principle_id} [{note.status.value}] {note.title}")
+        lines.append(f"  rule: {note.normalized_rule}")
+        lines.append(f"  tags: {', '.join(note.tags) if note.tags else '-'}")
+    return "\n".join(lines)
+
+
+def _format_candidates(candidates) -> str:
+    if not candidates:
+        return "No skill candidates found"
+
+    lines: list[str] = []
+    for candidate in candidates:
+        lines.append(
+            f"- {candidate.candidate_id} [{candidate.status.value}] {candidate.name} ({candidate.target_scope.value})"
+        )
+        lines.append(f"  principles: {', '.join(candidate.principle_ids)}")
+        if candidate.skill_path:
+            lines.append(f"  skill_path: {candidate.skill_path}")
+        if candidate.last_test_score is not None:
+            lines.append(f"  last_test_score: {candidate.last_test_score}")
     return "\n".join(lines)
 
 
