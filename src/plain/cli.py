@@ -5,6 +5,8 @@ import sys
 from typing import Sequence
 
 from plain.components.c1_flow.service import FlowService
+from plain.components.c2_release.render import render_dry_run_report, render_launch_pack, render_runbook
+from plain.components.c2_release.service import ReleaseService
 from plain.core.models import FlowError, Phase
 
 
@@ -95,6 +97,22 @@ def build_parser() -> argparse.ArgumentParser:
     snapshot_parser = subparsers.add_parser("snapshot", help="Show concise status snapshot")
     snapshot_parser.add_argument("project")
 
+    release_parser = subparsers.add_parser("release", help="Release flow orchestration")
+    release_sub = release_parser.add_subparsers(dest="release_command", required=True)
+
+    release_plan = release_sub.add_parser("plan", help="Generate release runbook")
+    release_plan.add_argument("--spec", default="release/release.yaml")
+
+    release_dry_run = release_sub.add_parser("dry-run", help="Run release dry-run checks")
+    release_dry_run.add_argument("--spec", default="release/release.yaml")
+
+    release_launch = release_sub.add_parser("launch", help="Launch after passing gates")
+    release_launch.add_argument("--spec", default="release/release.yaml")
+    release_launch.add_argument("--yes", action="store_true")
+
+    release_rollback = release_sub.add_parser("rollback", help="Run rollback flow")
+    release_rollback.add_argument("--spec", default="release/release.yaml")
+
     return parser
 
 
@@ -102,6 +120,7 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     service = FlowService.create_default()
+    release_service = ReleaseService()
 
     try:
         if args.command == "init":
@@ -192,6 +211,29 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
 
         if args.command == "snapshot":
             print(service.snapshot(args.project))
+            return 0
+
+        if args.command == "release" and args.release_command == "plan":
+            runbook, output = release_service.plan(spec_path=args.spec)
+            print(render_runbook(runbook))
+            print(f"\nrunbook_file={output}")
+            return 0
+
+        if args.command == "release" and args.release_command == "dry-run":
+            report = release_service.dry_run(spec_path=args.spec)
+            print(render_dry_run_report(report))
+            return 0
+
+        if args.command == "release" and args.release_command == "launch":
+            report, launch_paths = release_service.launch(spec_path=args.spec, yes=args.yes)
+            print(render_dry_run_report(report))
+            print("")
+            print(render_launch_pack([str(path) for path in launch_paths]))
+            return 0
+
+        if args.command == "release" and args.release_command == "rollback":
+            incident = release_service.rollback(spec_path=args.spec)
+            print(f"rollback_recorded={incident}")
             return 0
 
     except (FlowError, ValueError) as exc:
