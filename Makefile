@@ -1,4 +1,4 @@
-.PHONY: setup run test demo-c1
+.PHONY: setup run test demo-c1 release-plan release-dry-run release-launch release-rollback demo-c2
 
 setup:
 	uv sync --group extras --group test
@@ -24,3 +24,22 @@ demo-c1:
 	uv run python src/main.py conv link c1-demo feat_three_phase_flow_cli --client codex --session-id c1-demo-session --cwd "$$PWD" --summary "Demo conversation"
 	uv run python src/main.py board c1-demo
 	uv run python src/main.py snapshot c1-demo
+
+release-plan:
+	uv run python -m tools.release.cli plan
+
+release-dry-run:
+	uv run python -m tools.release.cli dry-run
+
+release-launch:
+	uv run python -m tools.release.cli launch --yes
+
+release-rollback:
+	uv run python -m tools.release.cli rollback
+
+demo-c2:
+	@set -e
+	make release-plan
+	make release-dry-run
+	uv run python -m tools.release.cli launch --yes
+	make release-rollback

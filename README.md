@@ -1,7 +1,6 @@
 # plain
 
 `plain` is an incremental implementation of the "human-driven AI projects" PRD stack.
-Component `c1` implements a local-first three-phase flow engine.
 
 ## Setup
 
@@ -48,12 +47,48 @@ Additional c1 helper commands:
 - `meta add` to store per-phase links/entrypoints/explanations
 - `conv resume` to print latest resume command per feature-phase
 
-## Demo
-
-Run the c1 end-to-end walkthrough:
+Demo:
 
 ```bash
 make demo-c1
 ```
 
-Detailed demo notes: `dev/notes/demos/c1.md`.
+Details: `dev/notes/demos/c1.md`.
+
+## C2: Release Flow
+
+The c2 layer adds release protocol scaffolding from `release/release.yaml`:
+- release runbook generation
+- gate-based dry-run checks
+- launch blocking on failed critical gates
+- explicit `--yes` approval for launch
+- rollback incident record generation
+
+CLI (via module wrapper):
+
+```bash
+uv run python -m tools.release.cli plan --spec release/release.yaml
+uv run python -m tools.release.cli dry-run --spec release/release.yaml
+uv run python -m tools.release.cli launch --spec release/release.yaml --yes
+uv run python -m tools.release.cli rollback --spec release/release.yaml
+```
+
+Make targets:
+- `release-plan`
+- `release-dry-run`
+- `release-launch`
+- `release-rollback`
+- `demo-c2`
+
+Release baseline files:
+- `release/release.yaml`
+- `release/backup-plan.md`
+- `deploy/docker-compose.yml`
+
+Demo:
+
+```bash
+make demo-c2
+```
+
+Details: `dev/notes/demos/c2.md`.

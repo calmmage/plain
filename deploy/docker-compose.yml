@@ -1,0 +1,6 @@
+services:
+  plain:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command: ["python", "src/main.py", "release", "dry-run"]
