@@ -213,3 +213,54 @@ make demo-c5
 ```
 
 Details: `dev/notes/demos/c5.md`.
+
+## C6: Review Queue UI (CLI-first)
+
+The c6 layer provides one review workspace for ready work, including run instructions, vision reminder, source links, and feedback history.
+
+Capabilities:
+- review queue schema with status lifecycle:
+  - `ready`
+  - `in_review`
+  - `changes_requested`
+  - `approved`
+  - `rejected`
+- ingest from review packet sources (`.md` and `.json`) with upsert behavior
+- READY gating rule:
+  - if `original_vision` is missing, item is blocked from `ready` and marked `changes_requested`
+- review actions:
+  - `start`
+  - `approve`
+  - `request-changes`
+  - `reject`
+  - `feedback`
+- table/detail CLI output with:
+  - status/project/feature/summary
+  - run instruction commands (`command` + `cwd`)
+  - changed files and source refs
+  - feedback history
+
+CLI (via workflow wrapper):
+
+```bash
+uv run python -m tools.workflow.review_ui.cli ingest --packet-path <path>
+uv run python -m tools.workflow.review_ui.cli list --ready-only
+uv run python -m tools.workflow.review_ui.cli show <review_id>
+uv run python -m tools.workflow.review_ui.cli start <review_id>
+uv run python -m tools.workflow.review_ui.cli run <review_id> --index 1
+uv run python -m tools.workflow.review_ui.cli feedback <review_id> --verdict question --notes "..."
+uv run python -m tools.workflow.review_ui.cli approve <review_id> --notes "..."
+uv run python -m tools.workflow.review_ui.cli request-changes <review_id> --notes "..."
+```
+
+Storage layout:
+- `data/review_queue/items.json`
+- `data/review_queue/feedback.json`
+
+Demo:
+
+```bash
+make demo-c6
+```
+
+Details: `dev/notes/demos/c6.md`.

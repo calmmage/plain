@@ -1,4 +1,4 @@
-.PHONY: setup run test demo-c1 release-plan release-dry-run release-launch release-rollback demo-c2 demo-c3 demo-c4 demo-c5
+.PHONY: setup run test demo-c1 release-plan release-dry-run release-launch release-rollback demo-c2 demo-c3 demo-c4 demo-c5 demo-c6
 
 setup:
 	uv sync --group extras --group test
@@ -76,3 +76,14 @@ demo-c5:
 		--force-full-scan
 	uv run python -m tools.workflow.obsidian_ingest.cli list --min-confidence 0.6
 	uv run python -m tools.workflow.obsidian_ingest.cli pending
+
+demo-c6:
+	@set -e
+	uv run python -m tools.workflow.review_ui.cli ingest \
+		--packet-path tests/fixtures/c6/review_packets/2026-02-09-al.md \
+		--project-id prj_plain \
+		--feature-id feat_review_ui \
+		--original-vision "Provide one review workspace with runnable instructions and concise vision reminder."
+	uv run python -m tools.workflow.review_ui.cli ingest \
+		--packet-path tests/fixtures/c6/review_packets/manual_items.json
+	uv run python -m tools.workflow.review_ui.cli list --ready-only
