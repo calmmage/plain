@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
 
@@ -104,6 +104,7 @@ class BootstrapService:
             raise FlowError(f"Cannot resume failed run: {run_id}")
 
         scenario = self.get_scenario(run.scenario_id)
+        run = self._apply_resume_checkpoint_confirmation(run, scenario)
         run = self._continue_run(
             run=run,
             scenario=scenario,
@@ -184,6 +185,39 @@ class BootstrapService:
         run.changed_files = sorted(set(run.changed_files))
         return run
 
+    def _apply_resume_checkpoint_confirmation(
+        self,
+        run: ScenarioRun,
+        scenario: BootstrapScenario,
+    ) -> ScenarioRun:
+        if run.mode != ExecutionMode.INTERACTIVE:
+            return run
+        if run.status != RunStatus.PAUSED:
+            return run
+        if run.next_step_index >= len(scenario.steps):
+            return run
+
+        step = scenario.steps[run.next_step_index]
+        if not (step.requires_human or step.primitive == StepPrimitive.HUMAN_CONFIRMATION):
+            return run
+
+        now = utc_now()
+        run.step_results.append(
+            StepRunRecord(
+                step_id=step.step_id,
+                status="completed",
+                summary=f"Human checkpoint confirmed on resume: {step.step_id}",
+                started_at=now,
+                finished_at=now,
+            )
+        )
+        run.completed_steps.append(step.step_id)
+        run.next_step_index += 1
+        run.notes.append(f"Confirmed checkpoint on resume: {step.step_id}")
+        run.status = RunStatus.RUNNING
+        run.finished_at = None
+        return run
+
     def _execute_step(
         self,
         step: ScenarioStep,
@@ -236,7 +270,7 @@ class BootstrapService:
 
     @staticmethod
     def _next_run_id(scenario_id: str) -> str:
-        stamp = utc_now().strftime("%Y%m%d_%H%M%S")
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
         return f"run_{scenario_id}_{stamp}"
 
 
