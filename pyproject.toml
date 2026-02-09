@@ -12,6 +12,7 @@ dependencies = [
     "loguru>=0.7",
     "toml>=0.10",
     "python-dotenv",
+    "pyyaml>=6.0",
 ]
 
 [build-system]
