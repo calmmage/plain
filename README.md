@@ -264,3 +264,41 @@ make demo-c6
 ```
 
 Details: `dev/notes/demos/c6.md`.
+
+## C7: Bootstrap Scenarios (Start/Finish)
+
+The c7 layer adds a hard-coded scenario catalog and safe runner for project bootstrap and finish workflows.
+
+Capabilities:
+- scenario registry loaded from versioned YAML files:
+  - `dev/notes/ecosystem/scenarios/*.yaml`
+- catalog includes 6 baseline scenarios:
+  - start: `python_uv_bootstrap`, `nextjs_bootstrap`, `repo_hygiene_bootstrap`
+  - finish: `quality_gate_finish`, `test_generation_finish`, `release_ready_finish`
+- execution modes:
+  - `interactive`: pauses at human checkpoints
+  - `observe`: runs unattended until blocker/checkpoint
+- safety rails:
+  - destructive command blocking by default
+  - step budget and wall-time budget
+  - per-step run records and status notes
+- run persistence and resume:
+  - run records stored under `data/bootstrap_runs/*.json`
+  - paused runs resumable by `run_id`
+
+CLI (via workflow wrapper):
+
+```bash
+uv run python -m tools.workflow.bootstrap.cli list
+uv run python -m tools.workflow.bootstrap.cli run quality_gate_finish --observe
+uv run python -m tools.workflow.bootstrap.cli resume <run_id> --interactive
+uv run python -m tools.workflow.bootstrap.cli runs --scenario-id quality_gate_finish
+```
+
+Demo:
+
+```bash
+make demo-c7
+```
+
+Details: `dev/notes/demos/c7.md`.

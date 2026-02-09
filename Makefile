@@ -1,4 +1,4 @@
-.PHONY: setup run test demo-c1 release-plan release-dry-run release-launch release-rollback demo-c2 demo-c3 demo-c4 demo-c5 demo-c6
+.PHONY: setup run test demo-c1 release-plan release-dry-run release-launch release-rollback demo-c2 demo-c3 demo-c4 demo-c5 demo-c6 demo-c7
 
 setup:
 	uv sync --group extras --group test
@@ -87,3 +87,10 @@ demo-c6:
 	uv run python -m tools.workflow.review_ui.cli ingest \
 		--packet-path tests/fixtures/c6/review_packets/manual_items.json
 	uv run python -m tools.workflow.review_ui.cli list --ready-only
+
+demo-c7:
+	@set -e; \
+	uv run python -m tools.workflow.bootstrap.cli list; \
+	RUN_ID=$$(uv run python -m tools.workflow.bootstrap.cli run quality_gate_finish --observe | awk -F': ' '/^run_id:/{print $$2}'); \
+	uv run python -m tools.workflow.bootstrap.cli resume "$$RUN_ID" --interactive; \
+	uv run python -m tools.workflow.bootstrap.cli runs --scenario-id quality_gate_finish
