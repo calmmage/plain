@@ -128,3 +128,39 @@ make demo-c3
 ```
 
 Details: `dev/notes/demos/c3.md`.
+
+## C4: Daily Feature Implementer
+
+The c4 layer runs one focused implementation cycle with deterministic selection and review artifacts.
+
+Capabilities:
+- candidate pool parsing from markdown/json task sources
+- task scoring with auditable reasons
+- deterministic workspace choice (`main_repo`, `git_worktree`, `new_repo_from_template`)
+- context enrichment pipeline (collect, dedupe, classify origin, summarize)
+- review packet + execution log generation with safety rails
+
+CLI (via workflow wrapper):
+
+```bash
+uv run python -m tools.workflow.daily_runner.cli score --task-source <path>
+uv run python -m tools.workflow.daily_runner.cli run \
+  --task-source <path> \
+  --context-source <path> \
+  --repo-path <path> \
+  --client codex
+```
+
+Sample daily inputs:
+- `dev/notes/ecosystem/daily_inputs/tasks_sample.md`
+- `dev/notes/ecosystem/daily_inputs/obsidian_context.md`
+- `dev/notes/ecosystem/daily_inputs/telegram_context.json`
+- `dev/notes/ecosystem/daily_inputs/bookmarks_context.json`
+
+Demo:
+
+```bash
+make demo-c4
+```
+
+Details: `dev/notes/demos/c4.md`.

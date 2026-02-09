@@ -1,4 +1,4 @@
-.PHONY: setup run test demo-c1 release-plan release-dry-run release-launch release-rollback demo-c2 demo-c3
+.PHONY: setup run test demo-c1 release-plan release-dry-run release-launch release-rollback demo-c2 demo-c3 demo-c4
 
 setup:
 	uv sync --group extras --group test
@@ -53,3 +53,15 @@ demo-c3:
 	uv run python -m tools.workflow.principles.cli deploy --target AGENTS.md --target CLAUDE.md --target GEMINI.md; \
 	uv run python -m tools.workflow.principles.cli list --status approved; \
 	uv run python -m tools.workflow.principles.cli list-candidates --status approved
+
+demo-c4:
+	@set -e
+	uv run python -m tools.workflow.daily_runner.cli score --task-source dev/notes/ecosystem/daily_inputs/tasks_sample.md --daily-budget 180
+	uv run python -m tools.workflow.daily_runner.cli run \
+		--task-source dev/notes/ecosystem/daily_inputs/tasks_sample.md \
+		--context-source dev/notes/ecosystem/daily_inputs/obsidian_context.md \
+		--context-source dev/notes/ecosystem/daily_inputs/telegram_context.json \
+		--context-source dev/notes/ecosystem/daily_inputs/bookmarks_context.json \
+		--repo-path "$$PWD" \
+		--client codex \
+		--changed-file src/plain/components/c4_daily_runner/service.py
