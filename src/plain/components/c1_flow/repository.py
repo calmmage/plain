@@ -8,10 +8,8 @@ from plain.core.models import FlowError, ProjectFlow
 
 try:
     import yaml
-except ImportError as exc:  # pragma: no cover
-    raise RuntimeError(
-        "PyYAML is required for flow markdown persistence. Install with: uv add pyyaml"
-    ) from exc
+except ImportError:  # pragma: no cover
+    yaml = None
 
 
 def slugify(text: str) -> str:
@@ -45,6 +43,7 @@ class FlowRepository:
         raise FlowError(f"Project not found: {identifier}")
 
     def save(self, project: ProjectFlow, slug: str | None = None) -> Path:
+        _require_yaml()
         self.ensure_exists()
         resolved_slug = slug or slugify(project.project_name)
         path = self.project_path(resolved_slug)
@@ -67,6 +66,7 @@ class FlowRepository:
 
 
 def split_frontmatter(text: str) -> tuple[dict[str, Any], str]:
+    _require_yaml()
     if not text.startswith("---\n"):
         return {}, text
 
@@ -86,6 +86,13 @@ def split_frontmatter(text: str) -> tuple[dict[str, Any], str]:
     if not isinstance(parsed, dict):
         return {}, body
     return parsed, body
+
+
+def _require_yaml() -> None:
+    if yaml is None:  # pragma: no cover
+        raise FlowError(
+            "PyYAML is required for flow persistence. Install with: uv add pyyaml"
+        )
 
 
 def render_project_body(project: ProjectFlow) -> str:
