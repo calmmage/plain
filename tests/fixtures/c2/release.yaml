@@ -1,0 +1,27 @@
+version: "0.1.0"
+service: "human-driven-ai-projects"
+release_type: "minor"
+
+gates:
+  tests: true
+  lint: true
+  pyright: true
+  migration_dry_run: true
+  smoke_test: true
+
+deployment:
+  environment: "prod"
+  strategy: "rolling"
+  compose_file: "deploy/docker-compose.yml"
+
+database:
+  migration_command: "uv run alembic upgrade head"
+  backup_required: true
+  rollback_command: "uv run alembic downgrade -1"
+
+launch:
+  changelog: "docs/changelog/0.1.0.md"
+  blog_post: "docs/launch/0.1.0.md"
+  notify_channels:
+    - "telegram"
+    - "x"
