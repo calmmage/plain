@@ -9,6 +9,7 @@ from plain.components.c3_principles.models import (
     SkillTestResult,
 )
 from plain.components.c3_principles.repository import PrinciplesRepository
+from plain.components.c3_principles.service import DeployResult, PrinciplesService
 
 __all__ = [
     "PrincipleNote",
@@ -18,4 +19,6 @@ __all__ = [
     "SkillTargetScope",
     "SkillTestResult",
     "PrinciplesRepository",
+    "DeployResult",
+    "PrinciplesService",
 ]
