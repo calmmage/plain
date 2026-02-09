@@ -1,4 +1,4 @@
-.PHONY: setup run test demo-c1 release-plan release-dry-run release-launch release-rollback demo-c2
+.PHONY: setup run test demo-c1 release-plan release-dry-run release-launch release-rollback demo-c2 demo-c3
 
 setup:
 	uv sync --group extras --group test
@@ -43,3 +43,13 @@ demo-c2:
 	make release-dry-run
 	uv run python -m tools.release.cli launch --yes
 	make release-rollback
+
+demo-c3:
+	@set -e; \
+	P_ID=$$(uv run python -m tools.workflow.principles.cli capture --title "Keep docs pointer-only" --raw "details in linked files, keep coordinator docs concise" --source "$$PWD/dev/notes/demos/c3.md" --rationale "Avoid instruction bloat by linking out details." --example-good "Reference docs by path and keep top-level instructions concise." --example-bad "Inline all details in every coordinator file." --tag workflow --tag docs | awk -F= '/captured_principle=/{print $$2}'); \
+	C_ID=$$(uv run python -m tools.workflow.principles.cli promote "$$P_ID" --skill-name concise-coordinator --scope coding | awk -F= '/candidate_id=/{print $$2}'); \
+	uv run python -m tools.workflow.principles.cli test-skill "$$C_ID" --prompt "Validate concise coordinator behavior for coding tasks"; \
+	uv run python -m tools.workflow.principles.cli approve-skill "$$C_ID"; \
+	uv run python -m tools.workflow.principles.cli deploy --target AGENTS.md --target CLAUDE.md --target GEMINI.md; \
+	uv run python -m tools.workflow.principles.cli list --status approved; \
+	uv run python -m tools.workflow.principles.cli list-candidates --status approved

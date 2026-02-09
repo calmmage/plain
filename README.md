@@ -92,3 +92,39 @@ make demo-c2
 ```
 
 Details: `dev/notes/demos/c2.md`.
+
+## C3: Principles to Skills Protocol
+
+The c3 layer captures repeated guidance as principles and promotes them to reusable skill assets.
+
+Capabilities:
+- principle capture with structured metadata and examples
+- promotion flow: principle note -> skill candidate -> generated `SKILL.md`
+- rubric-based `test-skill` scoring
+- explicit `approve-skill` gate
+- deployment of approved principle bundle into instruction files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`)
+
+CLI (via workflow wrapper):
+
+```bash
+uv run python -m tools.workflow.principles.cli capture --title "..." --raw "..." --source /path/file.md
+uv run python -m tools.workflow.principles.cli list --status draft
+uv run python -m tools.workflow.principles.cli promote <principle_id> --skill-name concise-coordinator --scope coding
+uv run python -m tools.workflow.principles.cli test-skill <candidate_id> --prompt "..."
+uv run python -m tools.workflow.principles.cli approve-skill <candidate_id>
+uv run python -m tools.workflow.principles.cli deploy --target AGENTS.md --target CLAUDE.md --target GEMINI.md
+```
+
+Storage layout:
+- `dev/notes/ecosystem/principles/inbox/`
+- `dev/notes/ecosystem/principles/approved/`
+- `dev/notes/ecosystem/principles/candidates/`
+- `skills/local/<skill-name>/SKILL.md`
+
+Demo:
+
+```bash
+make demo-c3
+```
+
+Details: `dev/notes/demos/c3.md`.
