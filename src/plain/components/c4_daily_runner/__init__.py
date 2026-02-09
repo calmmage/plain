@@ -12,6 +12,8 @@ from plain.components.c4_daily_runner.models import (
     ReviewPacket,
     WorkspaceType,
 )
+from plain.components.c4_daily_runner.render import render_daily_result
+from plain.components.c4_daily_runner.service import DailyImplementerService
 
 __all__ = [
     "CandidateScore",
@@ -24,4 +26,6 @@ __all__ = [
     "RepoState",
     "ReviewPacket",
     "WorkspaceType",
+    "render_daily_result",
+    "DailyImplementerService",
 ]
