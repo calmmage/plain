@@ -27,6 +27,9 @@ from plain.components.c6_review.render import (
     render_review_table,
 )
 from plain.components.c6_review.service import ReviewService
+from plain.components.c7_bootstrap.models import ExecutionMode, ScenarioKind
+from plain.components.c7_bootstrap.render import render_run, render_runs, render_scenarios
+from plain.components.c7_bootstrap.service import BootstrapService
 from plain.core.models import FlowError, Phase
 
 
@@ -315,6 +318,36 @@ def build_parser() -> argparse.ArgumentParser:
     review_reject.add_argument("--tag", action="append", default=[])
     review_reject.add_argument("--author", default="human")
 
+    bootstrap_parser = subparsers.add_parser(
+        "bootstrap", help="Run hard-coded start/finish bootstrap scenarios"
+    )
+    bootstrap_sub = bootstrap_parser.add_subparsers(
+        dest="bootstrap_command", required=True
+    )
+
+    bootstrap_list = bootstrap_sub.add_parser("list", help="List available scenarios")
+    bootstrap_list.add_argument("--kind", choices=[item.value for item in ScenarioKind])
+    bootstrap_list.add_argument("--tag")
+
+    bootstrap_run = bootstrap_sub.add_parser("run", help="Run one scenario")
+    bootstrap_run.add_argument("scenario_id")
+    bootstrap_run.add_argument("--interactive", action="store_true")
+    bootstrap_run.add_argument("--observe", action="store_true")
+    bootstrap_run.add_argument("--max-steps", type=int, default=40)
+    bootstrap_run.add_argument("--max-wall-time-sec", type=int, default=1800)
+    bootstrap_run.add_argument("--allow-destructive", action="store_true")
+
+    bootstrap_resume = bootstrap_sub.add_parser("resume", help="Resume paused scenario run")
+    bootstrap_resume.add_argument("run_id")
+    bootstrap_resume.add_argument("--interactive", action="store_true")
+    bootstrap_resume.add_argument("--observe", action="store_true")
+    bootstrap_resume.add_argument("--max-steps", type=int, default=40)
+    bootstrap_resume.add_argument("--max-wall-time-sec", type=int, default=1800)
+    bootstrap_resume.add_argument("--allow-destructive", action="store_true")
+
+    bootstrap_runs = bootstrap_sub.add_parser("runs", help="List historical scenario runs")
+    bootstrap_runs.add_argument("--scenario-id")
+
     return parser
 
 
@@ -327,6 +360,7 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
     daily_service = DailyImplementerService()
     obsidian_service = ObsidianIngestService.create_default()
     review_service = ReviewService.create_default()
+    bootstrap_service = BootstrapService.create_default()
 
     try:
         if args.command == "init":
@@ -662,6 +696,40 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
             print(render_review_item(item, feedback_entries))
             return 0
 
+        if args.command == "bootstrap" and args.bootstrap_command == "list":
+            scenarios = bootstrap_service.list_scenarios(kind=args.kind, tag=args.tag)
+            print(render_scenarios(scenarios))
+            return 0
+
+        if args.command == "bootstrap" and args.bootstrap_command == "run":
+            mode = _resolve_bootstrap_mode(args.interactive, args.observe)
+            run = bootstrap_service.run_scenario(
+                scenario_id=args.scenario_id,
+                mode=mode,
+                max_steps=args.max_steps,
+                max_wall_time_sec=args.max_wall_time_sec,
+                allow_destructive=args.allow_destructive,
+            )
+            print(render_run(run))
+            return 0
+
+        if args.command == "bootstrap" and args.bootstrap_command == "resume":
+            mode = _resolve_bootstrap_mode(args.interactive, args.observe)
+            run = bootstrap_service.resume_run(
+                run_id=args.run_id,
+                mode=mode,
+                max_steps=args.max_steps,
+                max_wall_time_sec=args.max_wall_time_sec,
+                allow_destructive=args.allow_destructive,
+            )
+            print(render_run(run))
+            return 0
+
+        if args.command == "bootstrap" and args.bootstrap_command == "runs":
+            runs = bootstrap_service.list_runs(scenario_id=args.scenario_id)
+            print(render_runs(runs))
+            return 0
+
     except (FlowError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -774,6 +842,14 @@ def _default_context_sources() -> list[str]:
         "README.md",
         "release/release.yaml",
     ]
+
+
+def _resolve_bootstrap_mode(interactive: bool, observe: bool) -> str:
+    if interactive and observe:
+        raise FlowError("Choose either --interactive or --observe, not both")
+    if observe:
+        return ExecutionMode.OBSERVE.value
+    return ExecutionMode.INTERACTIVE.value
 
 
 def main() -> int:
