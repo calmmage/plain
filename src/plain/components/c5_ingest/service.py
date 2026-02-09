@@ -423,12 +423,12 @@ def _classify_kind(text: str, default_kind: ItemKind) -> tuple[ItemKind, float]:
 
     if "feature" in lowered:
         return ItemKind.FEATURE, 0.86
-    if "project" in lowered:
+    if "preproject" in lowered:
+        return ItemKind.PREPROJECT, 0.88
+    if re.search(r"\bproject\b", lowered):
         return ItemKind.PROJECT, 0.84
     if "experiment" in lowered or "try " in lowered:
         return ItemKind.EXPERIMENT, 0.8
-    if "preproject" in lowered:
-        return ItemKind.PREPROJECT, 0.88
     if "idea" in lowered:
         return ItemKind.IDEA, 0.76
 
